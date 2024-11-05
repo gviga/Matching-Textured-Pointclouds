@@ -2,7 +2,7 @@ import torch
 import numbers
 import numpy as np
 import argparse
-from pytorch3d.structures import Meshes
+from pytorch3d.structures import Meshes, Pointclouds
 from pytorch3d.renderer import Textures
 from scipy.optimize import linear_sum_assignment
 from tqdm import tqdm
@@ -14,6 +14,47 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import colorsys
 
+from pytorch3d.structures import Pointclouds
+
+
+
+def subsample_pointcloud_random(pointcloud, num_samples):
+    """
+    Subsample a pointcloud using random sampling.
+    
+    Args:
+        pointcloud (Pointclouds): The input pointcloud.
+        num_samples (int): The number of points to sample.
+        
+    Returns:
+        Pointclouds: The subsampled pointcloud.
+    """
+    points = pointcloud.points_padded()
+    features = pointcloud.features_padded()
+
+    # Perform random sampling
+    indices = torch.randperm(points.shape[1])[:num_samples]
+
+    subsampled_points = points[:, indices, :]
+    subsampled_features = features[:, indices, :]
+
+    return Pointclouds(points=subsampled_points, features=subsampled_features)
+
+
+
+def convert_splat_container_to_torch_pointcloud(sc, device, normalize=True):
+    points = torch.tensor(sc.points, dtype=torch.float32)
+    if normalize:
+        points = points / 10  # Adjust this normalization factor if needed
+
+    if sc.features is not None and sc.features.size > 0:
+        features = torch.tensor(sc.features, dtype=torch.float32)  # Normalize RGB values to [0, 1]
+    else:
+        features = torch.ones_like(points)  # Default features (e.g., white color)
+
+    pointcloud = Pointclouds(points=[points], features=[features])
+    pointcloud = pointcloud.to(device)
+    return pointcloud
 
 def generate_colors(n):
     hues = [i / n for i in range(n)]
